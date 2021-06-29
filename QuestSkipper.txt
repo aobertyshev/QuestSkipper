@@ -1,0 +1,9 @@
+## Title: Quest Skipper
+## APIVersion: 100034
+## SavedVariables: QuestSkipperVars
+## DependsOn: LibAddonMenu-2.0
+
+QuestSkipper.lua
+settings.lua
+bindings.xml
+bindings.lua

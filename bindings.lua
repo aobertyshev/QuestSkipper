@@ -1,0 +1,1 @@
+ZO_CreateStringId("SI_BINDING_NAME_QS_TOGGLE_DIALOGUES", "Toggle skip dialogues")
