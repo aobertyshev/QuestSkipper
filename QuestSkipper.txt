@@ -1,5 +1,5 @@
 ## Title: Quest Skipper
-## APIVersion: 100034
+## APIVersion: 100035
 ## SavedVariables: QuestSkipperVars
 ## DependsOn: LibAddonMenu-2.0
 
