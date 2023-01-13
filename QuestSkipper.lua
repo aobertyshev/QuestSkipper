@@ -1,69 +1,21 @@
---certainly not the best practice but oh well
---todo move to settings.lua
-local LAM = LibAddonMenu2
-local panelName = "QuestSkipperSettingsPanel"
- 
-local panelData = {
-    type = "panel",
-    name = "QuestSkipper",
-    author = "@helixanon",
-}
-local optionsData = {
-    {
-        type = "checkbox",
-        name = "Skip dialogues",
-        getFunc = function() return QuestSkipper.SavedVariables.SkipDialogues end,
-        setFunc = function(value) QuestSkipper.SavedVariables.SkipDialogues = value end
-    },
-    {
-        type = "checkbox",
-        name = "Skip stable training",
-        getFunc = function() return QuestSkipper.SavedVariables.SkipStableTraining end,
-        setFunc = function(value) QuestSkipper.SavedVariables.SkipStableTraining = value end
-    },
-    {
-      type        = "editbox",
-      name        = "Riding skills order",
-      getFunc     = function() return QuestSkipper.SavedVariables.HorseSkillsOrder end,
-      setFunc     = function(value) QuestSkipper.SavedVariables.HorseSkillsOrder = value end,
-      isMultiline = true,
-      textType    = TEXT_TYPE_ALL,
-      width       = "full"
-    }
-}
-
-QuestSkipper = {}
-QuestSkipper.name = "QuestSkipper"
+QuestSkipper = QuestSkipper or {}
+QuestSkipper.Name = "QuestSkipper"
+QuestSkipper.Version = "1.2.0"
 QuestSkipper.HorseSkillsMap = {
     ["Speed"] = RIDING_TRAIN_SPEED,
     ["Stamina"] = RIDING_TRAIN_STAMINA,
     ["Capacity"] = RIDING_TRAIN_CARRYING_CAPACITY
 }
 
-function QuestSkipper:Initialize()
-    QuestSkipper.SavedVariables = ZO_SavedVars:NewCharacterIdSettings("QuestSkipperVars", 1, nil, nil)
-    if (QuestSkipper.SavedVariables.SkipDialogues == nil) then
-        QuestSkipper.SavedVariables.SkipDialogues = true
-    end
-    if (QuestSkipper.SavedVariables.SkipStableTraining == nil) then
-        QuestSkipper.SavedVariables.SkipStableTraining = true
-    end
-    if (QuestSkipper.SavedVariables.HorseSkillsOrder == nil) then
-        QuestSkipper.SavedVariables.HorseSkillsOrder = "Speed\nStamina\nCapacity"
-    end
-    EVENT_MANAGER:RegisterForEvent(self.name, EVENT_QUEST_OFFERED, self.QuestOffered)
-    EVENT_MANAGER:RegisterForEvent(self.name, EVENT_QUEST_COMPLETE_DIALOG, self.QuestComplete)
-    EVENT_MANAGER:RegisterForEvent(self.name, EVENT_CHATTER_BEGIN, self.ChatterBegin)
-    EVENT_MANAGER:RegisterForEvent(self.name, EVENT_CONVERSATION_UPDATED, self.ConversationUpdated)
-    EVENT_MANAGER:UnregisterForEvent(self.name, EVENT_ADD_ON_LOADED)
-    
-    LAM:RegisterAddonPanel(panelName, panelData)
-    LAM:RegisterOptionControls(panelName, optionsData)
-end
-
 function QuestSkipper:ToggleDialogues()
     QuestSkipper.SavedVariables.SkipDialogues = not QuestSkipper.SavedVariables.SkipDialogues
     d('Dialogue skip is now ' .. (QuestSkipper.SavedVariables.SkipDialogues and 'enabled' or 'disabled') .. '.')
+end
+
+function QuestSkipper.ShowBook()
+    if QuestSkipper.SavedVariables.SkipBooks then
+        EndInteraction(INTERACTION_BOOK)
+    end
 end
 
 function QuestSkipper.ConversationUpdated(eventCode, bodyText, optionCount)
@@ -77,8 +29,19 @@ function QuestSkipper.ChatterBegin(eventCode, optionCount)
     for i = 1, optionCount do
         local optionString, optionType, optionalArgument, isImportant, chosenBefore = GetChatterOption(i)
         -- d(optionType .. ' ' .. optionString)
+        --Stop autoselecting options if the choice is important (red lines in quest dialogues) or we're trying to open a shop UI
+        if
+        (isImportant and not QuestSkipper.SavedVariables.SkipImportantChoices) or 
+        (optionType == CHATTER_START_SHOP) or
+        (optionType == CHATTER_START_BANK) or
+        (optionType == CHATTER_START_GUILDBANK) or
+        (optionType == CHATTER_START_TRADINGHOUSE) then
+            return
+        end
         if ((optionType == CHATTER_START_STABLE) and (QuestSkipper.SavedVariables.SkipStableTraining)) then
             SelectChatterOption(i)
+            --Will train skills in order
+            --TrainRiding will not work for a skill that's already at max, thus it's possible to simply bruteforce the "next" skill
             for skill in string.gmatch(QuestSkipper.SavedVariables.HorseSkillsOrder, "[^\n]+") do
                 TrainRiding(QuestSkipper.HorseSkillsMap[skill])
             end
@@ -89,10 +52,6 @@ function QuestSkipper.ChatterBegin(eventCode, optionCount)
             optionType == CHATTER_START_NEW_QUEST_BESTOWAL or
             optionType == CHATTER_START_COMPLETE_QUEST or
             optionType == CHATTER_START_TALK or
-            optionType == CHATTER_START_SHOP or
-            -- optionType == CHATTER_TALK_CHOICE_PAY_BOUNTY or
-            -- optionType == CHATTER_START_BANK or
-            -- optionType == CHATTER_START_TRADINGHOUSE or
             optionType == CHATTER_TALK_CHOICE
         )) then
             SelectChatterOption(i)
@@ -118,9 +77,16 @@ function QuestSkipper.QuestOffered(eventCode)
 end
 
 function QuestSkipper.OnAddOnLoaded(event, addonName)
-    if addonName == QuestSkipper.name then
-        QuestSkipper:Initialize()
-    end
+    if addonName ~= QuestSkipper.Name then return end
+
+    QuestSkipper.InitSavedVariables()
+    QuestSkipper.InitSettings()
+    EVENT_MANAGER:RegisterForEvent(QuestSkipper.Name, EVENT_QUEST_OFFERED, QuestSkipper.QuestOffered)
+    EVENT_MANAGER:RegisterForEvent(QuestSkipper.Name, EVENT_QUEST_COMPLETE_DIALOG, QuestSkipper.QuestComplete)
+    EVENT_MANAGER:RegisterForEvent(QuestSkipper.Name, EVENT_CHATTER_BEGIN, QuestSkipper.ChatterBegin)
+    EVENT_MANAGER:RegisterForEvent(QuestSkipper.Name, EVENT_CONVERSATION_UPDATED, QuestSkipper.ConversationUpdated)
+    EVENT_MANAGER:RegisterForEvent(QuestSkipper.Name, EVENT_SHOW_BOOK, QuestSkipper.ShowBook)
+    EVENT_MANAGER:UnregisterForEvent(QuestSkipper.Name, EVENT_ADD_ON_LOADED)
 end
 
-EVENT_MANAGER:RegisterForEvent(QuestSkipper.name, EVENT_ADD_ON_LOADED, QuestSkipper.OnAddOnLoaded)
+EVENT_MANAGER:RegisterForEvent(QuestSkipper.Name, EVENT_ADD_ON_LOADED, QuestSkipper.OnAddOnLoaded)

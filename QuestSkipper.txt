@@ -1,9 +1,17 @@
-## Title: Quest Skipper
-## APIVersion: 100035 101031
-## SavedVariables: QuestSkipperVars
+## Title: QuestSkipper
+## Author: helixanon
+## AddOnVersion: 120
+## Version: 1.2.0
+## Description: Skips conversations, horse stable training and books.
+## APIVersion: 101035 101036
 ## DependsOn: LibAddonMenu-2.0
+## SavedVariables: QuestSkipperVars
+
+## This Add-on is not created by, affiliated with or sponsored by ZeniMax Media Inc. or its affiliates.
+## The Elder Scrolls® and related logos are registered trademarks or trademarks of ZeniMax Media Inc. in the United States and/or other countries.
+## All rights reserved.
 
 QuestSkipper.lua
-settings.lua
+QuestSkipperSettings.lua
 bindings.xml
 bindings.lua
