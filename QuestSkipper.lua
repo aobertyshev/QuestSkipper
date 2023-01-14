@@ -23,19 +23,25 @@ function QuestSkipper.ConversationUpdated(eventCode, bodyText, optionCount)
 end
 
 function QuestSkipper.ChatterBegin(eventCode, optionCount)
-    if ((QuestSkipper.SavedVariables.SkipDialogues) and (optionCount == 0)) then 
+    if ((QuestSkipper.SavedVariables.SkipDialogues) and (optionCount == 0)) then
+        --skip if we have nothing to say to an NPC
         EndInteraction(INTERACTION_CONVERSATION)
     end
     for i = 1, optionCount do
         local optionString, optionType, optionalArgument, isImportant, chosenBefore = GetChatterOption(i)
-        -- d(optionType .. ' ' .. optionString)
-        --Stop autoselecting options if the choice is important (red lines in quest dialogues) or we're trying to open a shop UI
+        --d(optionCount .. ' ' .. optionString .. ' ' .. optionType .. ' ' .. optionalArgument .. ' ' .. tostring(isImportant) .. ' ' .. tostring(chosenBefore))
         if
-        (isImportant and not QuestSkipper.SavedVariables.SkipImportantChoices) or 
+        --if the choice is in red text (important) and there's more than 1 choice
+        (isImportant and (optionCount > 1) and (not QuestSkipper.SavedVariables.SkipImportantChoices)) or
+        --merchant
         (optionType == CHATTER_START_SHOP) or
+        --banker
         (optionType == CHATTER_START_BANK) or
+        --guild bank
         (optionType == CHATTER_START_GUILDBANK) or
+        --guild store
         (optionType == CHATTER_START_TRADINGHOUSE) then
+            --if encountered any of the above options, stop
             return
         end
         if ((optionType == CHATTER_START_STABLE) and (QuestSkipper.SavedVariables.SkipStableTraining)) then
@@ -48,11 +54,20 @@ function QuestSkipper.ChatterBegin(eventCode, optionCount)
             EndInteraction(INTERACTION_CONVERSATION)
             break
         end
-        if ((not chosenBefore) and (QuestSkipper.SavedVariables.SkipDialogues) and (
-            optionType == CHATTER_START_NEW_QUEST_BESTOWAL or
-            optionType == CHATTER_START_COMPLETE_QUEST or
-            optionType == CHATTER_START_TALK or
-            optionType == CHATTER_TALK_CHOICE
+        if
+        ((not chosenBefore) and (QuestSkipper.SavedVariables.SkipDialogues) and (
+        --usually the first dialogue options when the conversation has started
+        optionType == CHATTER_START_TALK or
+        --just a common phrase
+        optionType == CHATTER_TALK_CHOICE or
+        --accepting quest
+        optionType == CHATTER_START_NEW_QUEST_BESTOWAL or
+        --completing quest
+        optionType == CHATTER_START_COMPLETE_QUEST or
+        --when the option is to pay money (e.g. bribe, not bounty)
+        optionType == CHATTER_TALK_CHOICE_MONEY or
+        --when the option is to pay bounty
+        optionType == CHATTER_TALK_CHOICE_PAY_BOUNTY
         )) then
             SelectChatterOption(i)
             return
